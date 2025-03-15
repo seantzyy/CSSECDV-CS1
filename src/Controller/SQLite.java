@@ -11,6 +11,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.sql.PreparedStatement;
+import org.mindrot.jbcrypt.BCrypt;
 
 public class SQLite {
     
@@ -280,16 +282,47 @@ public class SQLite {
         return users;
     }
     
-    public void addUser(String username, String password, int role) {
-        String sql = "INSERT INTO users(username,password,role) VALUES('" + username + "','" + password + "','" + role + "')";
+    public void addUser(String username, String password) {
+        String hashedPassword = hashPassword(password);
+        String sql = "INSERT INTO users(username,password) VALUES('" + username + "','" + password + "')";
         
         try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()){
-            stmt.execute(sql);
-            
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            pstmt.setString(2, hashedPassword);
+            pstmt.executeUpdate();
         } catch (Exception ex) {
             System.out.print(ex);
         }
+            
+        
+    }
+    
+    public boolean authenticateUser(String username, String password) {
+        String sql = "SELECT password, locked FROM users WHERE username = ?";
+        
+        try (Connection conn = DriverManager.getConnection(driverURL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                String hashedPassword = rs.getString("password");
+                int locked = rs.getInt("locked");
+                if (locked == 1) {
+                    System.out.println("Account is locked due to too many failed attempts.");
+                    return false;
+                }
+                return BCrypt.checkpw(password, hashedPassword);
+            }
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        return false;
+    }
+    
+    private String hashPassword(String password) {
+        return BCrypt.hashpw(password, BCrypt.gensalt(12));
     }
     
     public void removeUser(String username) {
