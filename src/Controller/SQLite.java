@@ -7,6 +7,7 @@ import Model.User;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -316,5 +317,51 @@ public class SQLite {
             System.out.print(ex);
         }
         return product;
+    }
+    
+    public User getUser(String username) {
+    String sql = "SELECT id, username, password, role, locked FROM users WHERE username=?";
+    User user = null;
+
+    try {
+        Connection conn = DriverManager.getConnection(driverURL);
+        PreparedStatement pstmt = conn.prepareStatement(sql);
+        pstmt.setString(1, username);
+
+        ResultSet rs = pstmt.executeQuery();
+
+        while (rs.next()) {
+            user = new User(rs.getInt("id"),
+                rs.getString("username"),
+                rs.getString("password"),
+                rs.getInt("role"),
+                rs.getInt("locked"));
+        }
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
+
+    return user;
+    }
+    
+    public void updateUser(User user){
+        String sql = "UPDATE users SET username = ?, password = ?, role = ?, locked = ? WHERE username = ?";
+        
+        try{
+            Connection conn = DriverManager.getConnection(driverURL);
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, user.getUsername());
+            pstmt.setString(2, user.getPassword());
+            pstmt.setInt(3, user.getRole());
+            pstmt.setInt(4, user.getLocked());
+            pstmt.setString(5, user.getUsername());
+            
+            pstmt.execute();
+            
+            System.out.println("User Updated");
+            
+        }catch(Exception ex){
+            ex.printStackTrace();
+        }
     }
 }
